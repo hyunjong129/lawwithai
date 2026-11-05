@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AI 계약 관리 앱 프로토타입</title>
+  <!-- Pretendard Font -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <div class="app-frame">
+
+    <!-- ===== 상단 바: 알림 종 아이콘(누르면 알림 목록, 다시 누르면 홈) ===== -->
+    <header class="sticky top-0 z-30 bg-[#FAFAFA] border-b border-[#EAE6DF] px-5 py-3 flex items-center justify-between">
+      <button onclick="navigateTo('home')" aria-label="일LAW와 홈" class="flex items-baseline text-[#0F172A] text-[24px] font-extrabold tracking-tight leading-none">
+        <span>일</span><span class="font-['Playfair_Display'] text-[#C5A059] text-[27px] font-bold">LAW</span><span>와</span>
+      </button>
+      <button onclick="navigateTo(current === 'alarms' ? 'home' : 'alarms')" aria-label="알림 목록" class="relative w-10 h-10 rounded-[12px] border border-[#EAE6DF] bg-[#FAFAFA] flex items-center justify-center active:scale-95 transition">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
+        <span id="bell-badge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#C5A059] text-[#0F172A] text-[11px] font-bold flex items-center justify-center"></span>
+      </button>
+    </header>
+     
+    <!-- ===== 일정 추가 시트: openAdd()/submitAdd() (계약 이름은 직접 입력, 목록은 자동완성 제안) ===== -->
+    <div id="add-sheet" class="fixed top-0 bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[70] hidden opacity-0 transition-opacity duration-200 bg-[#0F172A]/45" onclick="if(event.target===this)closeAdd()">
+      <div class="absolute bottom-0 left-0 right-0 bg-[#FAFAFA] rounded-t-[26px] border-t border-[#EAE6DF] p-5 pb-7">
+        <div class="flex items-center justify-between mb-4"><h2 class="text-[20px] text-[#0F172A]">일정 추가</h2><button onclick="closeAdd()" aria-label="닫기" class="w-9 h-9 rounded-full bg-[#F5F2EB] text-[#0F172A] text-[18px]">✕</button></div>
+        <label class="block text-[13px] font-bold text-[#0F172A]" for="add-contract">계약 이름</label>
+        <input id="add-contract" list="add-contract-list" type="text" maxlength="40" placeholder="예: 오피스텔 임대차 계약" autocomplete="off" class="mt-1.5 w-full border border-[#EAE6DF] rounded-[12px] px-3 py-3 text-[15px] text-[#0F172A] bg-[#F5F2EB]" />
+        <datalist id="add-contract-list"></datalist>
+        <label class="block text-[13px] font-bold text-[#0F172A] mt-4" for="add-label">일정 이름</label>
+        <input id="add-label" type="text" maxlength="40" placeholder="예: 보증금 입금일, 갱신 협의일" class="mt-1.5 w-full border border-[#EAE6DF] rounded-[12px] px-3 py-3 text-[15px] text-[#0F172A] bg-[#F5F2EB]" />
+        <label class="block text-[13px] font-bold text-[#0F172A] mt-4" for="add-date">날짜</label>
+        <input id="add-date" type="date" class="mt-1.5 w-full border border-[#EAE6DF] rounded-[12px] px-3 py-3 text-[15px] text-[#0F172A] bg-[#F5F2EB]" />
+        <label class="mt-4 flex items-center gap-2.5 text-[14px] text-[#0F172A]"><input id="add-alarm" type="checkbox" checked class="w-5 h-5 accent-[#0F172A]" />이 일정 알림 받기</label>
+        <div id="add-err" class="text-[13px] font-bold text-[#B91C1C] mt-3 min-h-[18px]"></div>
+        <div class="grid grid-cols-2 gap-2.5 mt-2">
+          <button onclick="closeAdd()" class="py-3.5 rounded-[14px] border border-[#EAE6DF] text-[#0F172A] text-[15px] font-bold">취소</button>
+          <button onclick="submitAdd()" class="py-3.5 rounded-[14px] bg-[#0F172A] text-white text-[15px] font-bold">추가</button>
+        </div>
+      </div>
+    </div>
+    <!-- ===== 삭제 확인 시트: askDelete()가 제목/내용을 채우고 runConfirm()이 실제 삭제 실행 ===== -->
+    <div id="confirm-sheet" class="fixed top-0 bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[80] hidden opacity-0 transition-opacity duration-200 bg-[#0F172A]/45" onclick="if(event.target===this)closeConfirm()">
+      <div class="absolute bottom-0 left-0 right-0 bg-[#FAFAFA] rounded-t-[26px] border-t border-[#EAE6DF] p-5 pb-7">
+        <h2 id="confirm-title" class="text-[19px] text-[#0F172A] leading-snug"></h2>
+        <p id="confirm-body" class="text-[14px] text-[#475569] mt-2"></p>
+        <div class="grid grid-cols-2 gap-2.5 mt-5">
+          <button onclick="closeConfirm()" class="py-3.5 rounded-[14px] border border-[#EAE6DF] text-[#0F172A] text-[15px] font-bold">취소</button>
+          <button onclick="runConfirm()" class="py-3.5 rounded-[14px] text-white text-[15px] font-bold" style="background:#DC2626">삭제</button>
+        </div>
+      </div>
+    </div>
+    <!-- ===== 토스트(상단 안내 배너): showToast() ===== -->
+    <div id="toast" class="fixed top-3 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[398px] z-[60] bg-[#0F172A] text-white rounded-[16px] px-4 py-3 shadow-lg pointer-events-none opacity-0 -translate-y-3 transition duration-200">
+      <div id="toast-title" class="text-[13.5px] font-bold"></div>
+      <div id="toast-body" class="text-[12.5px] text-[#EAE6DF] mt-0.5"></div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- 1. SCREEN: HOME (home.png)                                            -->
+    <!-- ===================================================================== -->
+    <main id="screen-home" class="screen active">
+      <!-- Top Greeting -->
+      <div class="px-5 pt-7 pb-5">
+        <p class="text-[#0F172A] text-[14px] font-bold tracking-tight"><span id="today-text">오늘</span></p>
+        <h1 class="text-[28px] font-extrabold text-[#0F172A] mt-1 tracking-tight leading-snug">안녕하세요, 김계약님</h1>
+        <p class="text-[15px] text-[#475569] mt-2 font-normal">오늘도 중요한 계약을 놓치지 않도록 도와드릴게요.</p>
+      </div>
+
+      <!-- Main Hero Card -->
+      <div class="mx-5 mb-6 rounded-[28px] hero-gradient p-6 pt-7 pb-7 text-white shadow-lg">
+        <div class="hero-arc-1"></div>
+        <div class="hero-arc-2"></div>
+
+        <!-- Pill Badge -->
+        <div class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 text-[12.5px] font-bold">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/>
+            <path d="M19 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z"/>
+          </svg>
+          <span>AI 계약 분석</span>
+        </div>
+
+        <!-- Headline -->
+        <h2 class="text-[29px] font-extrabold leading-[1.32] mt-5 tracking-tight">
+          복잡한 계약서,<br />이제 쉽게 확인하세요.
+        </h2>
+
+        <!-- Description -->
+        <p class="text-[14.5px] text-white/80 leading-[1.58] mt-3.5 font-normal pr-2">
+          계약서를 올리면 AI가 불리한 조항과 어려운 표현을 찾아 누구나 이해하기 쉽게 설명해 드려요.
+        </p>
+
+        <!-- White CTA Button -->
+        <button onclick="navigateTo('analyze-start')" class="mt-6 bg-[#FAFAFA] hover:bg-[#F5F2EB] active:scale-[0.98] transition text-[#0F172A] font-extrabold text-[15px] px-5 py-3.5 rounded-[15px] inline-flex items-center gap-2.5 shadow-md">
+          <span>계약서 분석 시작하기</span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+
+        <!-- Trust Badges -->
+        <div class="mt-4 flex items-center gap-4 text-[12.5px] text-white/80 font-medium">
+          <div class="flex items-center gap-1.5">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              <polyline points="9 12 11 14 15 10"></polyline>
+            </svg>
+            <span>안전한 암호화</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 15 14"></polyline>
+            </svg>
+            <span>평균 1분 이내</span>
+          </div>
+        </div>
+
+        </div>
+      <!-- Schedule / News -->
+      <div class="mx-5 mt-5">
+        <div class="flex bg-[#EAE6DF] rounded-[14px] p-1 mb-3">
+          <button id="home-tab-schedule" onclick="setHomeTab('schedule')" class="flex-1 py-2 rounded-[11px] text-[14px] transition">일정</button>
+          <button id="home-tab-news" onclick="setHomeTab('news')" class="flex-1 py-2 rounded-[11px] text-[14px] transition">뉴스</button>
+        </div>
+        <div id="home-panel-schedule">
+          <div id="home-schedule-list" class="space-y-2.5"></div>
+          <button onclick="navigateTo('contracts')" class="w-full mt-3 py-3 rounded-[14px] border border-[#0F172A] text-[#0F172A] text-[14px] font-bold flex items-center justify-center gap-1">내 계약 전체 보기 <span aria-hidden="true">›</span></button>
+        </div>
+        <div id="home-panel-news" class="hidden space-y-2.5"></div>
+      </div>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- 2. SCREEN: ANALYZE START 1/4 (analyze-start.png)                      -->
+    <!-- ===================================================================== -->
+    <main id="screen-analyze-start" class="screen">
+      <!-- 파일 입력: 원본 계약서는 IndexedDB에 보관하며 localStorage에는 저장하지 않는다. -->
+      <input id="file-input" type="file" accept="application/pdf,image/*" hidden>
+      <input id="cam-input" type="file" accept="image/*" capture="environment" hidden>
+      <!-- Subheader -->
+      <div class="px-5 pt-5 pb-3.5 flex items-center justify-between">
+        <button onclick="navigateTo('home')" class="flex items-center gap-1.5 text-[#475569] text-[14px] font-bold hover:text-[#0F172A]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span>홈으로 돌아가기</span>
+        </button>
+        <span class="text-[#475569] text-[14px] font-bold">계약 분석</span>
+      </div>
+
+      <!-- 4-Step Progress Bar (Step 1 Active) -->
+      <div class="mx-5 mb-4 bg-[#FAFAFA] rounded-[20px] border border-[#EAE6DF] px-5 py-4 flex items-center justify-between card-shadow">
+        <button onclick="navigateTo('analyze-start')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#0F172A] text-white text-[12px] font-extrabold flex items-center justify-center">1</div>
+          <span class="text-[11px] font-bold text-[#0F172A]">계약서 확인</span>
+        </button>
+        <div class="h-[1.5px] w-10 bg-[#C5A059] -mt-4"></div>
+        <button onclick="navigateTo('analyze-capture')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#EAE6DF] text-[#475569] text-[12px] font-bold flex items-center justify-center">2</div>
+          <span class="text-[11px] font-semibold text-[#475569]">촬영·업로드</span>
+        </button>
+        <div class="h-[1.5px] w-10 bg-[#EAE6DF] -mt-4"></div>
+        <button onclick="navigateTo('analyze-reviewing')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#EAE6DF] text-[#475569] text-[12px] font-bold flex items-center justify-center">3</div>
+          <span class="text-[11px] font-semibold text-[#475569]">AI 분석</span>
+        </button>
+        <div class="h-[1.5px] w-10 bg-[#EAE6DF] -mt-4"></div>
+        <button onclick="navigateTo('analyze-complete')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#EAE6DF] text-[#475569] text-[12px] font-bold flex items-center justify-center">4</div>
+          <span class="text-[11px] font-semibold text-[#475569]">분석 완료</span>
+        </button>
+      </div>
+
+      <!-- Main Card -->
+      <div class="mx-5 mb-6 bg-[#FAFAFA] rounded-[28px] border border-[#EAE6DF] p-6 pt-7 card-shadow">
+        <p class="text-[#0F172A] text-[13.5px] font-bold">새 계약 등록 · 1/4</p>
+
+        <!-- Blue Document Icon Box -->
+        <div class="w-[62px] h-[62px] rounded-[18px] bg-[#F5F2EB] flex items-center justify-center mt-5">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="8" y1="13" x2="16" y2="13"></line>
+            <line x1="8" y1="17" x2="14" y2="17"></line>
+          </svg>
+        </div>
+
+        <h2 class="text-[25px] font-extrabold text-[#0F172A] mt-6 tracking-tight">계약서를 작성하셨나요?</h2>
+        <p class="text-[14.5px] text-[#475569] leading-[1.6] mt-2.5">
+          종이 계약서 사진이나 전자 계약 파일을 올려주세요.<br />
+          AI가 중요한 내용을 빠르게 확인해 드려요.
+        </p>
+
+        <!-- Option 1: 계약서 촬영하기 -->
+        <button onclick="document.getElementById('cam-input').click()" class="w-full mt-6 p-4 rounded-[20px] border border-[#EAE6DF] hover:border-[#0F172A] bg-[#FAFAFA] flex items-center justify-between text-left transition active:scale-[0.99]">
+          <div class="flex items-center gap-4">
+            <div class="w-[48px] h-[48px] rounded-[14px] bg-[#F5F2EB] flex items-center justify-center shrink-0">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C5A059" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+            </div>
+            <div>
+              <div class="text-[15.5px] font-extrabold text-[#0F172A]">계약서 촬영하기</div>
+              <div class="text-[13px] text-[#475569] mt-0.5">종이 계약서를 선명하게 촬영해 주세요</div>
+            </div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+
+        <!-- Option 2: 전자 계약서 불러오기 -->
+        <button onclick="document.getElementById('file-input').click()" class="w-full mt-3 p-4 rounded-[20px] border border-[#EAE6DF] hover:border-[#0F172A] bg-[#FAFAFA] flex items-center justify-between text-left transition active:scale-[0.99]">
+          <div class="flex items-center gap-4">
+            <div class="w-[48px] h-[48px] rounded-[14px] bg-[#F5F2EB] flex items-center justify-center shrink-0">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+            </div>
+            <div>
+              <div class="text-[15.5px] font-extrabold text-[#0F172A]">전자 계약서 불러오기</div>
+              <div class="text-[13px] text-[#475569] mt-0.5">PDF 또는 이미지 파일</div>
+            </div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+
+        <!-- Security Footnote -->
+        <div class="mt-6 pt-1 flex items-center justify-center gap-1.5 text-[12.5px] text-[#475569]">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            <polyline points="9 12 11 14 15 10"></polyline>
+          </svg>
+          <span>업로드한 계약서는 암호화되어 안전하게 보관됩니다.</span>
+        </div>
+      </div>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- 3. SCREEN: ANALYZE CAPTURE 2/4 (analyze-capture.png)                  -->
+    <!-- ===================================================================== -->
+    <main id="screen-analyze-capture" class="screen">
+      <!-- Subheader -->
+      <div class="px-5 pt-5 pb-3.5 flex items-center justify-between">
+        <button onclick="navigateTo('home')" class="flex items-center gap-1.5 text-[#475569] text-[14px] font-bold hover:text-[#0F172A]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span>홈으로 돌아가기</span>
+        </button>
+        <span class="text-[#475569] text-[14px] font-bold">계약 분석</span>
+      </div>
+
+      <!-- 4-Step Progress Bar (Step 2 Active) -->
+      <div class="mx-5 mb-4 bg-[#FAFAFA] rounded-[20px] border border-[#EAE6DF] px-5 py-4 flex items-center justify-between card-shadow">
+        <button onclick="navigateTo('analyze-start')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#0F172A] text-white flex items-center justify-center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+          <span class="text-[11px] font-bold text-[#0F172A]">계약서 확인</span>
+        </button>
+        <div class="h-[1.5px] w-10 bg-[#C5A059] -mt-4"></div>
+        <button onclick="navigateTo('analyze-capture')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#0F172A] text-white text-[12px] font-extrabold flex items-center justify-center">2</div>
+          <span class="text-[11px] font-bold text-[#0F172A]">촬영·업로드</span>
+        </button>
+        <div class="h-[1.5px] w-10 bg-[#C5A059] -mt-4"></div>
+        <button onclick="navigateTo('analyze-reviewing')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#EAE6DF] text-[#475569] text-[12px] font-bold flex items-center justify-center">3</div>
+          <span class="text-[11px] font-semibold text-[#475569]">AI 분석</span>
+        </button>
+        <div class="h-[1.5px] w-10 bg-[#EAE6DF] -mt-4"></div>
+        <button onclick="navigateTo('analyze-complete')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#EAE6DF] text-[#475569] text-[12px] font-bold flex items-center justify-center">4</div>
+          <span class="text-[11px] font-semibold text-[#475569]">분석 완료</span>
+        </button>
+      </div>
+
+      <!-- Main Card -->
+      <div class="mx-5 mb-6 bg-[#FAFAFA] rounded-[28px] border border-[#EAE6DF] p-5 pt-7 text-center card-shadow">
+        <p class="text-[#0F172A] text-[13.5px] font-bold">계약서 촬영 · 2/4</p>
+        <h2 class="text-[24px] font-extrabold text-[#0F172A] leading-[1.35] mt-2.5">
+          계약서 전체가 보이게 촬영해 주<br />세요
+        </h2>
+        <p class="text-[13px] text-[#475569] mt-2.5">
+          글자가 흐리지 않고 모서리가 잘리지 않았는지 확인해 주세요.
+        </p>
+
+        <!-- Dark Camera Viewfinder Box -->
+        <div class="mt-5 rounded-[24px] camera-viewfinder h-[290px] flex items-center justify-center overflow-hidden">
+          <div class="corner-bracket corner-tl"></div>
+          <div class="corner-bracket corner-tr"></div>
+          <div class="corner-bracket corner-bl"></div>
+          <div class="corner-bracket corner-br"></div>
+
+          <!-- Cream Contract Document Inside Frame -->
+          <div id="capture-empty" class="w-[164px] h-[214px] bg-[#F5F2EB] rounded-[6px] shadow-2xl transform -rotate-[2deg] px-4 py-6 flex flex-col items-center">
+            <div class="text-[14px] font-extrabold text-[#1E293B] mb-5">임대차 계약서</div>
+            <div class="w-full space-y-2.5 px-1">
+              <div class="h-[5px] w-full bg-[#EAE6DF] rounded-full"></div>
+              <div class="h-[5px] w-[78%] bg-[#EAE6DF] rounded-full"></div>
+              <div class="h-[5px] w-full bg-[#EAE6DF] rounded-full"></div>
+              <div class="h-[5px] w-[76%] bg-[#EAE6DF] rounded-full"></div>
+              <div class="h-[5px] w-full bg-[#EAE6DF] rounded-full"></div>
+              <div class="h-[5px] w-[78%] bg-[#EAE6DF] rounded-full"></div>
+            </div>
+          </div>
+          <img id="capture-preview" alt="선택한 계약서 미리보기" class="hidden max-h-full max-w-full object-contain relative z-[1]">
+
+          <!-- Frame Status Pill -->
+          <div class="absolute bottom-3.5 bg-[#0F172A]/90 text-white/90 text-[11px] font-semibold px-3.5 py-1.5 rounded-full">
+            <span id="capture-status">계약서 파일을 선택해 주세요</span>
+          </div>
+        </div>
+
+        <!-- Primary Action Button -->
+        <p id="capture-file-name" class="text-[12px] text-[#475569] mt-3 truncate"></p>
+        <button onclick="startAnalysis()" class="w-full mt-5 bg-[#0F172A] hover:bg-[#1E293B] active:scale-[0.99] transition text-white font-bold text-[15px] py-4 rounded-[15px] flex items-center justify-center gap-2 shadow-sm">
+          <span>이 사진으로 분석하기</span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+
+        <!-- Secondary Action Button -->
+        <button onclick="pending=null;navigateTo('analyze-start')" class="w-full mt-2.5 bg-[#F5F2EB] hover:bg-[#EAE6DF] active:scale-[0.99] transition text-[#0F172A] font-bold text-[15px] py-4 rounded-[15px]">
+          다시 선택하기
+        </button>
+      </div>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- 4. SCREEN: ANALYZE REVIEWING 3/4 (analyze-reviewing.png)              -->
+    <!-- ===================================================================== -->
+    <main id="screen-analyze-reviewing" class="screen">
+      <!-- Subheader -->
+      <div class="px-5 pt-5 pb-3.5 flex items-center justify-between">
+        <button onclick="navigateTo('home')" class="flex items-center gap-1.5 text-[#475569] text-[14px] font-bold hover:text-[#0F172A]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span>홈으로 돌아가기</span>
+        </button>
+        <span class="text-[#475569] text-[14px] font-bold">계약 분석</span>
+      </div>
+
+      <!-- 4-Step Progress Bar (Step 3 Active) -->
+      <div class="mx-5 mb-4 bg-[#FAFAFA] rounded-[20px] border border-[#EAE6DF] px-5 py-4 flex items-center justify-between card-shadow">
+        <button onclick="navigateTo('analyze-start')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#0F172A] text-white flex items-center justify-center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+          <span class="text-[11px] font-bold text-[#0F172A]">계약서 확인</span>
+        </button>
+        <div class="h-[1.5px] w-10 bg-[#C5A059] -mt-4"></div>
+        <button onclick="navigateTo('analyze-capture')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#0F172A] text-white flex items-center justify-center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+          <span class="text-[11px] font-bold text-[#0F172A]">촬영·업로드</span>
+        </button>
+        <div class="h-[1.5px] w-10 bg-[#C5A059] -mt-4"></div>
+        <button onclick="navigateTo('analyze-reviewing')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#0F172A] text-white text-[12px] font-extrabold flex items-center justify-center">3</div>
+          <span class="text-[11px] font-bold text-[#0F172A]">AI 분석</span>
+        </button>
+        <div class="h-[1.5px] w-10 bg-[#C5A059] -mt-4"></div>
+        <button onclick="navigateTo('analyze-complete')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#EAE6DF] text-[#475569] text-[12px] font-bold flex items-center justify-center">4</div>
+          <span class="text-[11px] font-semibold text-[#475569]">분석 완료</span>
+        </button>
+      </div>
+
+      <!-- Main Card -->
+      <div class="mx-5 mb-6 bg-[#FAFAFA] rounded-[28px] border border-[#EAE6DF] px-6 py-9 text-center card-shadow">
+        <!-- Document Scan Illustration Box -->
+        <div class="w-[116px] h-[142px] mx-auto rounded-[22px] bg-[#F5F2EB] border border-[#EAE6DF] flex items-center justify-center relative overflow-hidden">
+          <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="8" y1="13" x2="16" y2="13"></line>
+            <line x1="8" y1="17" x2="14" y2="17"></line>
+          </svg>
+          <div class="scan-laser-beam"></div>
+        </div>
+
+        <p class="text-[#0F172A] text-[13.5px] font-bold mt-7">AI 계약 분석 · 3/4</p>
+        <h2 class="text-[24px] font-extrabold text-[#0F172A] mt-2 tracking-tight">계약서의 내용을 분석하고 있어요</h2>
+        <p id="review-filename" class="text-[13.5px] text-[#475569] mt-2.5"></p>
+        <p id="review-stage" class="text-[13px] text-[#0F172A] mt-2">글자 읽기</p>
+
+        <!-- Animated Blue Progress Bar -->
+        <div class="w-[86%] mx-auto h-[6px] bg-[#F5F2EB] rounded-full mt-6 overflow-hidden">
+          <div id="review-progress-fill" class="h-full bg-[#0F172A] rounded-full animate-progress-bar"></div>
+        </div>
+
+        <!-- Checklist -->
+        <div class="w-[86%] mx-auto mt-6 space-y-2.5 text-left text-[13px] font-bold">
+          <div class="flex items-center gap-2.5 text-[#16A34A]">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>계약서 글자 읽기</span>
+          </div>
+          <div class="flex items-center gap-2.5 text-[#16A34A]">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>표준 양식 판별</span>
+          </div>
+          <div class="flex items-center gap-2.5 text-[#0F172A]">
+            <svg class="animate-pulse" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/>
+              <path d="M19 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z"/>
+            </svg>
+            <span>항목 추출 및 규칙 검사</span>
+          </div>
+        </div>
+
+        <!-- CTA Button -->
+        <button onclick="startAnalysis()" class="mt-8 bg-[#0F172A] hover:bg-[#1E293B] active:scale-95 transition text-white font-bold text-[14.5px] px-7 py-4 rounded-[16px] inline-flex items-center gap-2 shadow-md">
+          <span>분석 다시 시작</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+      </div>
+    </main>
+
+    <!-- 항목 교정: 사용자가 추출값을 확인한 뒤 고친 값으로 규칙을 다시 실행한다. -->
+    <main id="screen-analyze-edit" class="screen">
+      <div class="px-5 pt-5 pb-3.5"><button onclick="navigateTo('analyze-capture')" class="text-[14px] font-bold text-[#475569]">‹ 계약서 미리보기로</button></div>
+      <section class="mx-5 mb-6 bg-[#FAFAFA] rounded-[24px] border border-[#EAE6DF] p-5">
+        <p class="text-[12px] font-bold text-[#475569]">자동 추출 항목 확인</p>
+        <h2 class="text-[22px] text-[#0F172A] mt-1">내용을 확인하고 수정해 주세요</h2>
+        <p id="analysis-form-label" class="text-[13px] text-[#475569] mt-2">인식 결과는 틀릴 수 있어요. 저장 전에 확인해 주세요.</p>
+        <div id="analysis-fields" class="mt-5"></div>
+        <button onclick="saveAnalysis()" class="w-full mt-3 py-4 rounded-[15px] bg-[#0F172A] text-white text-[15px] font-bold">확인하고 검사 결과 저장</button>
+      </section>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- 5. SCREEN: ANALYZE COMPLETE 4/4 (analyze-complete.png)                -->
+    <!-- ===================================================================== -->
+    <main id="screen-analyze-complete" class="screen">
+      <!-- Subheader -->
+      <div class="px-5 pt-5 pb-3.5 flex items-center justify-between">
+        <button onclick="navigateTo('home')" class="flex items-center gap-1.5 text-[#475569] text-[14px] font-bold hover:text-[#0F172A]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span>홈으로 돌아가기</span>
+        </button>
+        <span class="text-[#475569] text-[14px] font-bold">계약 분석</span>
+      </div>
+
+      <!-- 4-Step Progress Bar (Step 4 Active) -->
+      <div class="mx-5 mb-4 bg-[#FAFAFA] rounded-[20px] border border-[#EAE6DF] px-5 py-4 flex items-center justify-between card-shadow">
+        <button onclick="navigateTo('analyze-start')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#0F172A] text-white flex items-center justify-center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+          <span class="text-[11px] font-bold text-[#0F172A]">계약서 확인</span>
+        </button>
+        <div class="h-[1.5px] w-10 bg-[#C5A059] -mt-4"></div>
+        <button onclick="navigateTo('analyze-capture')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#0F172A] text-white flex items-center justify-center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+          <span class="text-[11px] font-bold text-[#0F172A]">촬영·업로드</span>
+        </button>
+        <div class="h-[1.5px] w-10 bg-[#C5A059] -mt-4"></div>
+        <button onclick="navigateTo('analyze-reviewing')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#0F172A] text-white flex items-center justify-center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+          <span class="text-[11px] font-bold text-[#0F172A]">AI 분석</span>
+        </button>
+        <div class="h-[1.5px] w-10 bg-[#C5A059] -mt-4"></div>
+        <button onclick="navigateTo('analyze-complete')" class="flex flex-col items-center gap-1.5">
+          <div class="w-[26px] h-[26px] rounded-full bg-[#0F172A] text-white text-[12px] font-extrabold flex items-center justify-center">4</div>
+          <span class="text-[11px] font-bold text-[#0F172A]">분석 완료</span>
+        </button>
+      </div>
+
+      <!-- Main Card (Crisp, Vibrant Full-Opacity Completion State matching video) -->
+      <div class="complete-card-enter mx-5 mb-6 bg-[#FAFAFA] rounded-[28px] border border-[#F5F2EB] p-6 py-10 text-center shadow-sm">
+        <!-- Crisp Vibrant Green Circle -->
+        <div class="w-[76px] h-[76px] mx-auto mt-2 mb-5 rounded-full bg-[#34A853] flex items-center justify-center shadow-sm">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+
+        <p class="text-[#1E8E3E] text-[13px] font-bold mb-2">분석 완료 · 4/4</p>
+        <h2 class="text-[#111827] text-[24px] font-extrabold tracking-tight mb-2.5">계약서 분석을 마쳤어요</h2>
+        <p id="complete-summary" class="text-[#6B7280] text-[14px] font-medium mb-7">분석 결과를 내 계약에 저장했어요.</p>
+
+        <!-- 2 Summary Stat Boxes -->
+        <div class="grid grid-cols-2 gap-3 mb-6">
+          <div class="bg-[#FAFAFA] border border-[#EAE6DF] rounded-[16px] px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#F59E0B]"></span>
+              <span class="text-[#475569] text-[14px] font-bold">주의 조항</span>
+            </div>
+            <span id="complete-issues" class="text-[#111827] text-[15px] font-extrabold">0개</span>
+          </div>
+          <div class="bg-[#FAFAFA] border border-[#EAE6DF] rounded-[16px] px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#0F172A]"></span>
+              <span class="text-[#475569] text-[14px] font-bold">중요 일정</span>
+            </div>
+            <span id="complete-events" class="text-[#111827] text-[15px] font-extrabold">0개</span>
+          </div>
+        </div>
+
+        <!-- Bottom CTA Button -->
+        <button onclick="openDetail(lastAnalyzedId)" class="w-full bg-[#0F172A] hover:bg-[#1E293B] active:scale-[0.99] transition text-white font-bold text-[15px] py-4 rounded-[16px] flex items-center justify-center gap-2 shadow-sm">
+          <span>나의 계약에서 확인하기</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+      </div>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- 6. SCREEN: CONTRACTS LIST (contracts.png)                             -->
+    <!-- ===================================================================== -->
+    <!-- ===== 내 계약: 월간 달력 + 선택한 날 일정(추가/삭제) + 계약 목록(JS: renderCalendar, renderContracts) ===== -->
+    <main id="screen-contracts" class="screen">
+      <div class="px-5 pt-4">
+        <button onclick="navigateTo('home')" class="flex items-center gap-1.5 text-[14px] font-bold text-[#475569] active:scale-95 transition">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <span>홈으로 돌아가기</span>
+        </button>
+      </div>
+      <div class="px-5 pt-5">
+        <h1 class="text-[26px] text-[#0F172A]">내 계약</h1>
+        <p id="contracts-count" class="text-[13.5px] text-[#475569] mt-1"></p>
+      </div>
+      <div class="mx-5 mt-4 bg-[#FAFAFA] border border-[#EAE6DF] rounded-[22px] p-4">
+        <div class="flex items-center justify-between mb-3">
+          <span id="cal-title" class="serif text-[20px] font-bold text-[#0F172A]"></span>
+          <div class="flex items-center gap-1.5">
+            <button onclick="calMove(-1)" aria-label="이전 달" class="w-8 h-8 rounded-full border border-[#EAE6DF] text-[#0F172A] text-[16px]">‹</button>
+            <button onclick="calToday()" class="h-8 px-3 rounded-full border border-[#EAE6DF] text-[12.5px] font-bold text-[#0F172A]">오늘</button>
+            <button onclick="calMove(1)" aria-label="다음 달" class="w-8 h-8 rounded-full border border-[#EAE6DF] text-[#0F172A] text-[16px]">›</button>
+          </div>
+        </div>
+        <div id="cal-grid" class="grid grid-cols-7 text-center gap-y-1"></div>
+      </div>
+      <div class="mx-5 mt-3 bg-[#FAFAFA] border border-[#EAE6DF] rounded-[22px] p-4">
+        <div class="flex items-center justify-between gap-2">
+          <div id="sel-date-label" class="text-[13px] font-bold text-[#475569]"></div>
+          <button onclick="openAdd()" class="shrink-0 h-8 px-3 rounded-full bg-[#0F172A] text-white text-[12.5px] font-bold flex items-center gap-1 active:scale-95 transition"><span class="text-[15px] leading-none">+</span>일정 추가</button>
+        </div>
+        <div id="sel-day-list" class="mt-2.5 space-y-2.5"></div>
+      </div>
+      <div class="px-5 mt-6 flex items-center justify-between">
+        <h2 class="text-[19px] text-[#0F172A]">계약 목록</h2>
+        <div id="contract-filters" class="flex gap-1.5"></div>
+      </div>
+      <div id="contract-list" class="mx-5 mt-3 space-y-3"></div>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- 7. SCREEN: CONTRACT DETAIL (contract-detail.png)                      -->
+    <!-- ===================================================================== -->
+    <main id="screen-contract-detail" class="screen">
+      <!-- Top Back Link -->
+      <div class="px-5 pt-5 pb-3.5">
+        <button onclick="navigateTo('contracts')" class="flex items-center gap-1.5 text-[#475569] text-[14px] font-semibold hover:text-[#0F172A]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span>내 계약으로 돌아가기</span>
+        </button>
+      </div>
+
+      <!-- Card 1: Contract Title Overview -->
+      <div class="mx-5 mb-4 bg-[#FAFAFA] rounded-[26px] border border-[#EAE6DF] p-5 flex items-start gap-4 card-shadow">
+        <div class="w-[54px] h-[54px] rounded-[16px] bg-[#F5F2EB] flex items-center justify-center shrink-0">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="8" y1="13" x2="16" y2="13"></line>
+            <line x1="8" y1="17" x2="14" y2="17"></line>
+          </svg>
+        </div>
+        <div>
+          <p id="d-type-line" class="text-[#0F172A] text-[11.5px] font-bold">부동산 · 분석 완료</p>
+          <h1 id="d-name" class="text-[21px] font-extrabold text-[#0F172A] mt-1 tracking-tight">오피스텔 임대차 계약</h1>
+          <p id="d-meta" class="text-[12.5px] text-[#475569] mt-1"></p>
+
+          <div id="d-flag" class="mt-3.5 inline-flex items-center gap-1.5 bg-[#FDECCF] text-[#C25E00] text-[12px] font-bold px-3.5 py-1.5 rounded-full">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <span id="d-flag-text">확인 필요한 조항 2개</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: 전체 내용 요약 -->
+      <div class="mx-5 mb-4 bg-[#FAFAFA] rounded-[26px] border border-[#EAE6DF] p-5 card-shadow">
+        <div class="flex items-center gap-3">
+          <div class="w-[42px] h-[42px] rounded-[13px] bg-[#F5F2EB] flex items-center justify-center shrink-0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2">
+              <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/>
+              <path d="M19 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-[16.5px] font-extrabold text-[#0F172A]">전체 내용 요약</h2>
+            <p class="text-[12px] text-[#475569] mt-0.5">긴 계약서에서 꼭 알아야 할 내용을 정리했어요.</p>
+          </div>
+        </div>
+
+        <div id="d-summary" class="mt-4 bg-[#F5F2EB] rounded-[18px] p-4 text-[13.5px] text-[#1E293B] leading-[1.68]"></div>
+      </div>
+
+      <!-- Card 3: 계약 조건 추출 -->
+      <div class="mx-5 mb-6 bg-[#FAFAFA] rounded-[26px] border border-[#EAE6DF] p-5 card-shadow">
+        <div class="flex items-center gap-3">
+          <div class="w-[42px] h-[42px] rounded-[13px] bg-[#F5F2EB] flex items-center justify-center shrink-0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="8" y1="13" x2="16" y2="13"></line>
+              <line x1="8" y1="17" x2="14" y2="17"></line>
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-[16.5px] font-extrabold text-[#0F172A]">계약 조건 추출</h2>
+            <p class="text-[12px] text-[#475569] mt-0.5">금액, 기간과 주요 의무를 항목별로 확인하세요.</p>
+          </div>
+        </div>
+
+        <div id="d-terms" class="mt-4 rounded-[18px] border border-[#EAE6DF] overflow-hidden"></div>
+      </div>
+    <div class="mx-5 mt-4 bg-[#FAFAFA] border border-[#EAE6DF] rounded-[22px] p-5">
+        <div class="flex items-center justify-between gap-2"><h2 class="text-[18px] text-[#0F172A]">일정 알림</h2><button onclick="openAdd((detailContract() || {}).name)" class="shrink-0 h-8 px-3 rounded-full bg-[#0F172A] text-white text-[12.5px] font-bold flex items-center gap-1 active:scale-95 transition"><span class="text-[15px] leading-none">+</span>일정 추가</button></div>
+        <p class="text-[13px] text-[#475569] mt-1">종 모양을 눌러 일정별 알림을 켜세요.</p>
+        <div id="detail-alarm-list" class="mt-3 space-y-2.5"></div>
+      </div>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- 8. SCREEN: SCHEDULE (schedule.png)                                    -->
+    <!-- ===================================================================== -->
+    
+
+    <!-- ===================================================================== -->
+    <!-- 9. SCREEN: AI CONSULT (ai-consult.png)                                -->
+    <!-- ===================================================================== -->
+    <main id="screen-ai-consult" class="screen">
+      <div class="px-5 pt-4">
+        <button onclick="navigateTo('home')" class="flex items-center gap-1.5 text-[14px] font-bold text-[#475569] active:scale-95 transition">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <span>홈으로 돌아가기</span>
+        </button>
+      </div>
+      <!-- Top Summary Card -->
+      <div class="mx-5 mt-5 mb-4 bg-[#FAFAFA] rounded-[26px] border border-[#EAE6DF] p-5 pt-6 card-shadow">
+        <div class="flex items-start gap-4">
+          <div class="w-[60px] h-[60px] rounded-[18px] bg-[#F5F2EB] flex items-center justify-center shrink-0">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2">
+              <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/>
+              <path d="M19 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-[#0F172A] text-[13px] font-bold">24시간 계약 도우미</p>
+            <h1 class="text-[26px] font-extrabold text-[#0F172A] mt-0.5 tracking-tight">AI 계약 상담</h1>
+            <p class="text-[13.5px] text-[#475569] mt-1.5 leading-relaxed">계약에 문제가 생겼다면 상황을 알려주세요. 대응 방법을 함께 찾을게요.</p>
+          </div>
+        </div>
+
+        <button onclick="navigateTo('analyze-start')" class="w-full mt-5 bg-[#0F172A] hover:bg-[#1E293B] active:scale-[0.99] transition text-white font-bold text-[14.5px] py-3.5 rounded-[15px] flex items-center justify-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>새 계약 분석</span>
+        </button>
+      </div>
+
+      <!-- ===== AI 상담 대화 카드 (프로토타입): 추천 질문을 고르면 미리 써 둔 답변이 나타남. 로직은 js/app.js의 "9. AI 상담" ===== -->
+      <div class="mx-5 mb-6 bg-[#FAFAFA] rounded-[26px] border border-[#EAE6DF] px-5 pt-6 pb-5 card-shadow">
+        <!-- 대화가 없을 때만 보이는 안내 -->
+        <div id="consult-intro" class="text-center pt-3">
+          <div class="w-[68px] h-[68px] mx-auto rounded-[20px] bg-[#0F172A] shadow-[0_10px_22px_rgba(15,23,42,0.28)] flex items-center justify-center text-white">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/><path d="M19 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z"/></svg>
+          </div>
+          <h2 class="text-[20.5px] font-extrabold text-[#0F172A] mt-5 tracking-tight">어떤 계약 문제가 있으신가요?</h2>
+          <p class="text-[13.5px] text-[#475569] leading-[1.55] mt-2.5 px-2">아래 추천 질문을 눌러 보세요. 근로계약서에서 자주 묻는 내용을 안내해 드려요.</p>
+        </div>
+        <!-- 대화 말풍선이 쌓이는 곳 -->
+        <div id="consult-log" class="space-y-3"></div>
+        <!-- 추천 질문 칩 -->
+        <div class="flex items-center justify-between mt-5 mb-2.5">
+          <span class="text-[12.5px] font-bold text-[#475569]">추천 질문</span>
+          <button id="consult-clear" onclick="clearConsult()" class="hidden text-[12.5px] text-[#475569] underline">대화 지우기</button>
+        </div>
+        <div id="consult-chips" class="flex flex-wrap gap-2"></div>
+        <!-- 직접 입력 (준비된 키워드와 맞으면 답변, 아니면 안내) -->
+        <div class="mt-5 bg-[#F5F2EB] border border-[#EAE6DF] rounded-[18px] p-2 pl-4 flex items-center justify-between gap-2">
+          <input id="consult-input" type="text" onkeydown="if(event.key==='Enter')sendConsult()" placeholder="질문을 입력하거나 위에서 골라 보세요" class="w-full bg-transparent text-[13.5px] text-[#0F172A] placeholder-[#94A3B8] focus:outline-none" />
+          <button onclick="sendConsult()" aria-label="보내기" class="w-[42px] h-[42px] rounded-[13px] bg-[#0F172A] hover:bg-[#1E293B] text-white flex items-center justify-center shrink-0 transition active:scale-95">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- 10. SCREEN: SETTINGS (settings.png)                                   -->
+    <!-- ===================================================================== -->
+    <!-- ===== 알림 목록: 알림 켠 일정만 표시(JS: renderAlarms) ===== -->
+    <main id="screen-alarms" class="screen">
+      <div class="px-5 pt-5">
+        <button onclick="navigateTo('home')" class="flex items-center gap-1.5 text-[14px] font-bold text-[#475569] active:scale-95 transition mb-3">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <span>홈으로 돌아가기</span>
+        </button>
+        <h1 class="text-[26px] text-[#0F172A]">알림 목록</h1>
+        <p id="alarms-count" class="text-[13.5px] text-[#475569] mt-1"></p>
+      </div>
+      <div id="alarms-list" class="mx-5 mt-4 space-y-2.5"></div>
+    </main>
+
+    <main id="screen-settings" class="screen">
+      <div class="px-5 pt-4">
+        <button onclick="navigateTo('home')" class="flex items-center gap-1.5 text-[14px] font-bold text-[#475569] active:scale-95 transition">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <span>홈으로 돌아가기</span>
+        </button>
+      </div>
+      <!-- Top Title Area -->
+      <div class="px-5 pt-6 pb-4 flex items-start gap-4">
+        <div class="w-[54px] h-[54px] rounded-[18px] bg-[#F5F2EB] flex items-center justify-center shrink-0 mt-1">
+          <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </div>
+        <div>
+          <p class="text-[#0F172A] text-[13px] font-bold">계정 및 앱 관리</p>
+          <h1 class="text-[28px] font-extrabold text-[#0F172A] mt-0.5 tracking-tight">설정</h1>
+          <p class="text-[13.5px] text-[#475569] mt-1">내 계정과 알림 수신 방법을 안전하게 관리하세요.</p>
+        </div>
+      </div>
+
+      <div class="mx-5 mt-4 bg-[#FAFAFA] border border-[#EAE6DF] rounded-[22px] p-5">
+        <h2 class="text-[18px] text-[#0F172A]">알림 설정</h2>
+        <p class="text-[13px] text-[#475569] mt-1">만료일, 통보 기한, 지급일을 놓치지 않게 알려드려요.</p>
+        <div class="mt-4 flex items-center justify-between">
+          <div><div class="text-[15px] font-bold text-[#0F172A]">일정 알림 받기</div><div id="notif-status" class="text-[12.5px] text-[#475569] mt-0.5"></div></div>
+          <button id="alarm-master" onclick="toggleMaster()" role="switch" class="relative w-[50px] h-[30px] rounded-full transition shrink-0"><span class="absolute top-[3px] w-6 h-6 rounded-full bg-[#FAFAFA] shadow transition-all"></span></button>
+        </div>
+        <div class="mt-5 text-[13px] font-bold text-[#0F172A]">언제 알려드릴까요?</div>
+        <div id="lead-chips" class="mt-2 flex flex-wrap gap-2"></div>
+        <div class="mt-5 flex items-center justify-between">
+          <label for="alarm-time" class="text-[13px] font-bold text-[#0F172A]">알림 시각</label>
+          <input id="alarm-time" type="time" onchange="setAlarmTime(this.value)" class="border border-[#EAE6DF] rounded-[10px] px-3 py-2 text-[14px] text-[#0F172A] bg-[#F5F2EB]" />
+        </div>
+        <button onclick="sendTest()" class="mt-5 w-full py-3 rounded-[14px] bg-[#0F172A] text-white text-[14px] font-bold active:scale-[0.99] transition">테스트 알림 보내기</button>
+        <button onclick="resetData()" class="mt-2.5 w-full py-3 rounded-[14px] border border-[#EAE6DF] text-[#475569] text-[13.5px] font-bold">샘플 데이터 복원 (삭제·추가한 내용 초기화)</button>
+      </div>
+
+      <!-- Card 1: 사용자 프로필 -->
+      <div class="mx-5 mb-4 bg-[#FAFAFA] rounded-[26px] border border-[#EAE6DF] p-5 card-shadow">
+        <h2 class="text-[16.5px] font-extrabold text-[#0F172A]">사용자 프로필</h2>
+        <p class="text-[12px] text-[#475569] mt-1">서비스에서 사용할 이름과 기본 정보를 관리합니다.</p>
+
+        <button class="mt-4 text-[#0F172A] text-[13px] font-bold">수정</button>
+
+        <div class="border-t border-[#EAE6DF] my-4"></div>
+
+        <div class="flex items-start gap-4">
+          <div class="w-[52px] h-[52px] rounded-[16px] bg-[#0F172A] text-white text-[19px] font-extrabold flex items-center justify-center shrink-0">
+            김
+          </div>
+          <div>
+            <div class="text-[16px] font-extrabold text-[#0F172A]">김계약</div>
+            <div class="text-[12.5px] text-[#475569] mt-0.5">student@example.com</div>
+            <div class="mt-2.5 inline-flex items-center gap-1.5 bg-[#DCFCE7] text-[#059669] text-[11.5px] font-bold px-3 py-1 rounded-full">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <span>이메일 인증 완료</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: 계정 관리 -->
+      <div class="mx-5 mb-6 bg-[#FAFAFA] rounded-[26px] border border-[#EAE6DF] p-5 card-shadow">
+        <h2 class="text-[16.5px] font-extrabold text-[#0F172A]">계정 관리</h2>
+        <p class="text-[12px] text-[#475569] mt-1">가입, 로그인과 계정 복구에 필요한 메뉴입니다.</p>
+
+        <div class="mt-4 divide-y divide-[#EAE6DF] border-t border-[#EAE6DF]">
+          <!-- Row 1 -->
+          <div class="py-3.5 flex items-center justify-between cursor-pointer">
+            <div class="flex items-center gap-3.5">
+              <div class="w-[40px] h-[40px] rounded-[12px] bg-[#F5F2EB] flex items-center justify-center">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </div>
+              <div>
+                <div class="text-[14px] font-extrabold text-[#0F172A]">회원가입 및 로그인</div>
+                <div class="text-[11.5px] text-[#475569] mt-0.5">이메일 또는 지원되는 계정으로 접속</div>
+              </div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </div>
+
+          <!-- Row 2 -->
+          <div class="py-3.5 flex items-center justify-between cursor-pointer">
+            <div class="flex items-center gap-3.5">
+              <div class="w-[40px] h-[40px] rounded-[12px] bg-[#F5F2EB] flex items-center justify-center">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="text-[14px] font-extrabold text-[#0F172A]">비밀번호 재설정</div>
+                <div class="text-[11.5px] text-[#475569] mt-0.5">이메일 인증을 통해 계정을 복구</div>
+              </div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </div>
+
+          <!-- Row 3 -->
+          <div class="pt-3.5 flex items-center justify-between cursor-pointer">
+            <div class="flex items-center gap-3.5">
+              <div class="w-[40px] h-[40px] rounded-[12px] bg-[#F5F2EB] flex items-center justify-center">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+              </div>
+              <div>
+                <div class="text-[14px] font-extrabold text-[#0F172A]">로그아웃</div>
+                <div class="text-[11.5px] text-[#475569] mt-0.5">현재 기기에서 안전하게 로그아웃</div>
+              </div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ==================== FIXED BOTTOM NAVIGATION BAR ==================== -->
+    <!-- ===== 하단 "≡" 메뉴(홈/내 계약/AI 상담/설정) JS: toggleFab, navigateTo ===== -->
+    <div id="fab-dim" onclick="toggleFab(false)" class="fixed top-0 bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-[#0F172A]/45 z-40 hidden opacity-0 transition-opacity duration-200"></div>
+    <div id="fab-wrap" class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] h-0 z-50 pointer-events-none">
+      <div class="absolute bottom-6 right-5 flex flex-col items-end gap-3">
+        <div id="fab-menu" class="flex-col items-end gap-2.5" style="display:none">
+          <button id="fab-item-home" onclick="navigateTo('home')" class="fab-item pointer-events-auto flex items-center gap-3 rounded-full pl-4 pr-2 py-2 border shadow-md transition"><span class="text-[14px] font-bold">홈</span><span class="fab-ic w-9 h-9 rounded-full flex items-center justify-center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span></button>
+          <button id="fab-item-contracts" onclick="navigateTo('contracts')" class="fab-item pointer-events-auto flex items-center gap-3 rounded-full pl-4 pr-2 py-2 border shadow-md transition"><span class="text-[14px] font-bold">내 계약</span><span class="fab-ic w-9 h-9 rounded-full flex items-center justify-center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/></svg></span></button>
+          <button id="fab-item-ai-consult" onclick="navigateTo('ai-consult')" class="fab-item pointer-events-auto flex items-center gap-3 rounded-full pl-4 pr-2 py-2 border shadow-md transition"><span class="text-[14px] font-bold">AI 상담</span><span class="fab-ic w-9 h-9 rounded-full flex items-center justify-center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/><path d="M19 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z"/></svg></span></button>
+          <button id="fab-item-settings" onclick="navigateTo('settings')" class="fab-item pointer-events-auto flex items-center gap-3 rounded-full pl-4 pr-2 py-2 border shadow-md transition"><span class="text-[14px] font-bold">설정</span><span class="fab-ic w-9 h-9 rounded-full flex items-center justify-center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></span></button>
+        </div>
+        <button id="fab-btn" onclick="toggleFab()" aria-label="메뉴" aria-expanded="false" class="pointer-events-auto w-[58px] h-[58px] rounded-full bg-[#0F172A] text-white shadow-[0_10px_24px_rgba(15,23,42,0.35)] flex items-center justify-center transition-transform duration-200 active:scale-95">
+          <svg id="fab-ic-bars" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg><svg id="fab-ic-x" class="hidden" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+  <script src="js/rules.js"></script>
+  <script src="js/analyzer.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

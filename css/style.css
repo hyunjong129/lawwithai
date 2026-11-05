@@ -1,0 +1,189 @@
+/* css/style.css — 공통 스타일 (색/폰트/달력/메뉴 등). 레이아웃 대부분은 Tailwind 클래스로 index.html에 있음 */
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #EAE6DF;
+      color: #0F172A;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    /* Mobile App Frame */
+    .app-frame {
+      width: 100%;
+      max-width: 430px;
+      min-height: 100vh;
+      background-color: #F5F2EB;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.14);
+      overflow-x: hidden;
+      padding-bottom: 88px;
+    }
+    /* Screen transition */
+    .screen {
+      display: none;
+      animation: fadeIn 0.18s ease-out;
+    }
+    .screen.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* Hero Card Gradient & Decorative Lines */
+    .hero-gradient {
+      background: #0F172A;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-arc-1 {
+      position: absolute;
+      top: -120px;
+      right: -140px;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      border: 1px solid rgba(197, 160, 89, 0.28);
+      pointer-events: none;
+    }
+    .hero-arc-2 {
+      position: absolute;
+      bottom: -160px;
+      left: -130px;
+      width: 380px;
+      height: 380px;
+      border-radius: 50%;
+      border: 1px solid rgba(197, 160, 89, 0.22);
+      pointer-events: none;
+    }
+    /* Camera Viewfinder */
+    .camera-viewfinder {
+      background: #0F172A;
+      position: relative;
+    }
+    .corner-bracket {
+      position: absolute;
+      width: 38px;
+      height: 38px;
+      border-color: #C5A059;
+      pointer-events: none;
+    }
+    .corner-tl {
+      top: 22px; left: 22px;
+      border-top: 2.5px solid #C5A059;
+      border-left: 2.5px solid #C5A059;
+      border-top-left-radius: 12px;
+    }
+    .corner-tr {
+      top: 22px; right: 22px;
+      border-top: 2.5px solid #C5A059;
+      border-right: 2.5px solid #C5A059;
+      border-top-right-radius: 12px;
+    }
+    .corner-bl {
+      bottom: 22px; left: 22px;
+      border-bottom: 2.5px solid #C5A059;
+      border-left: 2.5px solid #C5A059;
+      border-bottom-left-radius: 12px;
+    }
+    .corner-br {
+      bottom: 22px; right: 22px;
+      border-bottom: 2.5px solid #C5A059;
+      border-right: 2.5px solid #C5A059;
+      border-bottom-right-radius: 12px;
+    }
+    /* Custom subtle shadows matching Figma */
+    .card-shadow {
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.035);
+    }
+    .floating-badge-shadow {
+      box-shadow: 0 12px 28px rgba(4, 18, 44, 0.22);
+    }
+    /* Step 3/4: Document Scanner Laser & Progress Bar Animations */
+    @keyframes scanMove {
+      0%, 100% {
+        top: 26px;
+      }
+      50% {
+        top: 104px;
+      }
+    }
+    .scan-laser-beam {
+      position: absolute;
+      left: 11%;
+      width: 78%;
+      height: 2.5px;
+      background-color: #0F172A;
+      border-radius: 9999px;
+      box-shadow: 0 4px 12px rgba(197, 160, 89, 0.55);
+      animation: scanMove 2.2s ease-in-out infinite;
+    }
+    .scan-laser-beam::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 0;
+      width: 100%;
+      height: 22px;
+      background: linear-gradient(180deg, rgba(197, 160, 89, 0.20) 0%, rgba(197, 160, 89, 0) 100%);
+      pointer-events: none;
+    }
+    @keyframes progressLoad {
+      0% {
+        width: 18%;
+      }
+      50% {
+        width: 88%;
+      }
+      100% {
+        width: 100%;
+      }
+    }
+    .animate-progress-bar {
+      animation: progressLoad 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    /* Step 4/4: Crisp Entrance Animation */
+    @keyframes completeCardPop {
+      from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.985);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    #screen-analyze-complete.active .complete-card-enter {
+      animation: completeCardPop 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    /* Signary design system: serif headlines */
+    h1, h2, h3 {
+      font-family: 'Playfair Display', 'Noto Serif KR', 'Pretendard', serif !important;
+      font-weight: 700 !important;
+      letter-spacing: -0.01em !important;
+    }
+    :lang(ko) h1, :lang(ko) h2, :lang(ko) h3 {
+      font-family: 'Noto Serif KR', 'Playfair Display', 'Pretendard', serif !important;
+    }
+    .app-frame { border-left: 1px solid #EAE6DF; border-right: 1px solid #EAE6DF; }
+    /* ---- 아래부터 추가 스타일: 세리프 제목 / "≡" 메뉴 항목 / 달력 칸 ---- */
+    .serif { font-family: 'Playfair Display','Noto Serif KR',serif; }
+    .fab-item { background:#FAFAFA; color:#0F172A; border-color:#EAE6DF; }
+    .fab-item .fab-ic { background:#F5F2EB; }
+    .fab-item.cur { background:#0F172A; color:#FAFAFA; border-color:#0F172A; }
+    .fab-item.cur .fab-ic { background:#C5A059; color:#0F172A; }
+    .cal-day { height:40px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; font-size:14px; color:#0F172A; }
+    .cal-day .n { width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:50%; }
+    .cal-day.today .n { background:#0F172A; color:#FAFAFA; font-weight:700; }
+    .cal-day.sel .n { box-shadow:inset 0 0 0 1.5px #C5A059; }
+    .cal-day.ev::after { content:""; position:absolute; bottom:1px; width:5px; height:5px; border-radius:50%; background:#C5A059; }
+    .cal-day.out { visibility:hidden; }
+  
